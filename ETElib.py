@@ -146,16 +146,13 @@ def visualize_tree(tree, layout = "c", show = True):
         
 ### TREE MANIPULATION FUNCTIONS ###
 def midpoint(input):    
-    tree = Tree(input, format = 1)
-    
-    ## get midpoint root of tree ##
+    tree = Tree(input, format = 1)   
     midpoint = tree.get_midpoint_outgroup()
 
     ## set midpoint root as outgroup ##
     tree.set_outgroup(midpoint)
     tree.write(format=1, outfile=input+".tree")
     return
-
 
 def bootstrap_collapse(tree, threshold=50):
     t=Tree(tree)
@@ -165,7 +162,6 @@ def bootstrap_collapse(tree, threshold=50):
         else:
             return node
 
-        
 def resolve_polytomies(input):   
     tree = Tree(input, format = 1)   
     tree.resolve_polytomy(recursive=True) ## resolve polytomies in tree ##
@@ -173,20 +169,18 @@ def resolve_polytomies(input):
     return
 
 
+## Leaf counting functions ##
 def count_leaves ( tree ):
     nleaves = []
-
     t = Tree(tree)
     
-    for leaf in t.iter_leaves(): ## Assign a unique color to each species ##
+    for leaf in t.iter_leaves():
         nleaves.append(leaf)
 
     counts = len(nleaves)
-    
     return counts
-        
 
-## Leaf counting functions ##
+
 def count_descendant_leaves ( tree, node ):
     t=Tree(tree)
     descendant_leaves = []
@@ -211,19 +205,6 @@ def count_leaves_by_taxon ( tree, taxon_ID ):
     return
 
 
-def count_descendant_leaves_by_taxon ( tree, node, taxon_ID ):
-    t=Tree(tree)
-    descendant_leaves = []
-
-    for node in t.traverse ("preorder"):
-        if node.is_leaf():
-            if re.search ( taxon_ID, node.name ):
-                descendant_leaves.append ( node.get_leaf_names() )
-
-    print ("You have", len(descendant_leaves), "descendant leaves for", taxon_ID )
-    return
-
-
 ## Replace geneids in newick with names from a gene ID list ##
 def fasta_names ( fasta ):
     gene_names = {}
@@ -233,7 +214,7 @@ def fasta_names ( fasta ):
     gene_names[id]=name
     return gene_names
 
-
+## Generate newick format
 def get_newick(node):   
     if node.is_leaf():
         return f"{node.name}:{node.dist}"
@@ -249,6 +230,7 @@ def get_newick(node):
     return f"({children_newick}){node.name}:{node.dist}"
 
 
+## Substitute taxon names in newick
 def sub_names_nwk( newick, file_with_names ):  
     t=Tree(newick)
     name = {}
@@ -260,13 +242,12 @@ def sub_names_nwk( newick, file_with_names ):
 
     for node in t.traverse("postorder"):
         if node.is_leaf():
-            if re.search ("Lutzomyia", node.name ):
-                node_m = re.sub(".*_", "", node.name)
-                node.name = str(node.name+'_'+name[node_m])[:-1]
+            node_m = re.sub(".*_", "", node.name)
+            node.name = str(node.name+'_'+name[node_m])[:-1]
             
     return t.write(format=5)
 
-
+## Concatenate multiple gene trees together for ASTRAL input
 def prep_ASTRAL_input (tree):
     output_file = re.sub(".nwk|.tree|.tre",".astral.nwk",tree)
     
