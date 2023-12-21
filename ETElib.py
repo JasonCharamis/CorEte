@@ -36,7 +36,7 @@ def main():
     parser = argparse.ArgumentParser(description='Library for efficiently manipulating multiple sequence alignments, newick files and trees.')
     args = parse_arguments()
 
-    if args.tree and args.aln:
+    if args.tree and args.alignment:
         print ("Please select either --tree or --alignment input file.")
     
     elif args.tree:
@@ -69,9 +69,8 @@ def main():
         elif args.astral:
             prep_ASTRAL_input(args.tree)
 
-    elif args.aln:
-        with open(str(args.aln + ".phy"), "w" ) as outfile:
-            print ( aln2phy(args.aln), file=outfile )
+    elif args.alignment:
+        aln2phy(args.alignment, str(args.alignment) + ".phy")
             
     else:
         print ("Please provide a nwk or an alignment file as input.")
@@ -269,16 +268,30 @@ def prep_ASTRAL_input (tree):
 
 
 ## Multiple Sequence Alignment (MSA) manipulation
-def aln2phy ( input_file ):
-    with open(input_file, 'r') as file:
-        content = file.read()
-        num_spec = content.count('>')
-        tmp = content.replace('\n', '').replace(' ', '').replace('>', ' ').strip()
-        length = len(tmp) - tmp.count(';') - 1
-        tmp = tmp.replace(';', '\n')
+def aln2phy ( input_file, output_file ):
+    sequences = []
+    
+    with open(input_file, 'r') as f:
+        lines = f.readlines()
+        current_sequence = None
+        for line in lines:
+            if line.startswith('>'):
+                if current_sequence is not None:
+                    sequences.append(current_sequence)
+                current_sequence = {'header': line.strip()[1:], 'sequence': ''}
+            else:
+                current_sequence['sequence'] += line.strip()
+        if current_sequence is not None:
+            sequences.append(current_sequence)
 
-        return(f"{num_spec} {length} {tmp}")
+    num_sequences = len(sequences)
+    seq_length = len(sequences[0]['sequence'])
 
-                
+    with open(output_file, 'w') as f:
+        f.write(f"{num_sequences} {seq_length}\n")
+        for sequence in sequences:
+            f.write(f"{sequence['header']} {sequence['sequence']}\n")
+            
+               
 if __name__ == "__main__":
     main()
