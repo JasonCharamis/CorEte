@@ -19,6 +19,7 @@ def parse_arguments():
     parser.add_argument('--cutoff', type=str,help='Bootstrap support cutoff for collapsing nodes.')
     parser.add_argument('-r','--resolve', action="store_true",help='Resolve polytomies.')
     parser.add_argument('-v','--visualize', action="store_true",help='Visualize tree.')
+    parser.add_argument('-l','--layout', type=str, help='Layout for visualizing tree. Default: circular.')
     parser.add_argument('-c','--count', action="store_true",help='Count leaves')
     parser.add_argument('-n','--names', action="store_true",help='Option to replace names in nwk')
     parser.add_argument('-nf','--names_file', type = str ,help='File with names to replace. Default is second column in tab-separated format.')
@@ -54,7 +55,10 @@ def main():
                 print ( "Please provide a bootstrap cutoff.")
             
         elif args.visualize:
-            visualize_tree(args.tree)
+            if args.layout:
+                visualize_tree(args.tree, layout = args.layout)
+            else:
+                visualize_tree(args.tree)
 
         elif args.resolve:
             resolve_polytomies(args.tree)
