@@ -23,6 +23,7 @@ def parse_arguments():
     parser.add_argument('-c','--count', action="store_true",help='Count leaves')
     parser.add_argument('-n','--names', action="store_true",help='Option to replace names in nwk')
     parser.add_argument('-nf','--names_file', type = str ,help='File with names to replace. Default is second column in tab-separated format.')
+    parser.add_argument('-pat','--pattern', type = str ,help='Pattern for selecting node names.')
     parser.add_argument('-al','--astral', action="store_true",help='Option to convert gene trees to ASTRAL input for species tree estimation.')
     args = parser.parse_args()
 
@@ -65,7 +66,12 @@ def main():
 
         elif args.names:
             if args.names_file:
-                print ( sub_names_nwk(args.tree, args.names_file ) )
+                if args.pattern:
+                    with open ( f"{args.tree}.new_names.{args.pattern}.nwk", "w" ) as new_names:
+                        print ( sub_names_nwk(args.tree, args.names_file, pattern = args.pattern ), file = new_names )
+                else:
+                    with open ( f"{args.tree}.new_names.all_taxa.nwk", "w" ) as new_names:
+                        print ( sub_names_nwk(args.tree, args.names_file, pattern = False ), file = new_names )
             else:
                 print ( "Please provide a list with gene names to replace.")
 
@@ -82,6 +88,16 @@ def main():
         print ("Please provide a nwk or an alignment file as input.")
 
 
+
+def is_newick_format(file_path):
+    try:
+        tree = Tree(file_path)
+        
+        if tree:
+            return True
+    except:
+        return False
+        
 ## Main visualization function for leaf coloring and bootstrap support ##
 def visualize_tree(tree, layout = "c", show = True):
     t=Tree(tree)
@@ -236,21 +252,27 @@ def get_newick(node):
 
 
 ## Substitute taxon names in newick
-def sub_names_nwk( newick, file_with_names ):  
-    t=Tree(newick)
+def sub_names_nwk( newick, file_with_names, pattern = False ):  
+    n=Tree(newick)
     name = {}
-    
-    with open ( file_with_names, "r" ) as names:
-        for n in names.readlines():
-            k = n.split('\t')
-            name[k[0]] = k[1]         
 
-    for node in t.traverse("postorder"):
+    if is_newick_format(file_with_names):
+        if not pattern == False:
+            t=Tree(file_with_names)
+
+            for node in t.traverse():
+                if node.is_leaf():
+                    if re.search (pattern, node.name):
+                        name[node.name.split('_')[0]] = node.name
+    else:
+        print ( 'Provided file format is not newick.' )
+
+    for node in n.traverse():
         if node.is_leaf():
-            node_m = re.sub(".*_", "", node.name)
-            node.name = str(node.name+'_'+name[node_m])[:-1]
+            if node.name in name.keys():
+                node.name = str(name[node.name])
             
-    return t.write(format=5)
+    return n.write(format=5)
 
 ## Concatenate multiple gene trees together for ASTRAL input
 def prep_ASTRAL_input (tree):
