@@ -4,7 +4,7 @@
 #!/usr/bin/env python3
 
 import seaborn as sns
-from ete3 import Tree, TreeStyle, NodeStyle, TextFace
+import ete3
 import re, random, os
 import argparse
 
@@ -68,10 +68,10 @@ def main():
             if args.names_file:
                 if args.pattern:
                     with open ( f"{args.tree}.new_names.{args.pattern}.nwk", "w" ) as new_names:
-                        print ( sub_names_nwk(args.tree, args.names_file, pattern = args.pattern ), file = new_names )
+                        print ( sub_names_nwk(tree = args.tree, file_with_names = args.names_file, pattern = args.pattern ), file = new_names )
                 else:
                     with open ( f"{args.tree}.new_names.all_taxa.nwk", "w" ) as new_names:
-                        print ( sub_names_nwk(args.tree, args.names_file, pattern = False ), file = new_names )
+                        print ( sub_names_nwk(tree = args.tree, file_with_names = args.names_file, pattern = False ), file = new_names )
             else:
                 print ( "Please provide a list with gene names to replace.")
 
@@ -89,20 +89,19 @@ def main():
 
 
 
-def is_newick_format(file_path):
-    try:
-        tree = Tree(file_path)
-        
-        if tree:
-            return True
-    except:
-        return False
+def identify_format(file_path):
+    if re.search (".nwk$|.newick$", file_path):
+        return 'newick'
+    elif re.search (".fasta$|.fa$|.faa$|.fna$", file_path):
+        return 'fasta'
+    else:
+        return 'list'
         
 ## Main visualization function for leaf coloring and bootstrap support ##
 def visualize_tree(tree, layout = "c", show = True):
-    t=Tree(tree)
+    t=ete3.Tree(tree)
 
-    ts = TreeStyle()
+    ts = ete3.TreeStyle()
     ts.show_leaf_name = False
     ts.mode = layout
 
@@ -167,16 +166,16 @@ def visualize_tree(tree, layout = "c", show = True):
         
 ### TREE MANIPULATION FUNCTIONS ###
 def midpoint(input):    
-    tree = Tree(input, format = 1)   
+    tree = ete3.Tree(input, format = 2)   
     midpoint = tree.get_midpoint_outgroup()
 
     ## set midpoint root as outgroup ##
     tree.set_outgroup(midpoint)
-    tree.write(format=1, outfile=input+".tree")
+    tree.write(format=2, outfile=input+".tree")
     return
 
 def bootstrap_collapse(tree, threshold=50):
-    t=Tree(tree)
+    t=ete3.Tree(tree)
     for node in t.traverse():
         if node.support < threshold:
             return node.delete()
@@ -184,16 +183,16 @@ def bootstrap_collapse(tree, threshold=50):
             return node
 
 def resolve_polytomies(input):   
-    tree = Tree(input, format = 1)   
+    tree = ete3.Tree(input, format = 2)   
     tree.resolve_polytomy(recursive=True) ## resolve polytomies in tree ##
-    tree.write(format=1, outfile=input+".resolved_polytomies")
+    tree.write(format = 2, outfile=input+".resolved_polytomies")
     return
 
 
 ## Leaf counting functions ##
 def count_leaves ( tree ):
     nleaves = []
-    t = Tree(tree)
+    t = ete3.Tree(tree)
     
     for leaf in t.iter_leaves():
         nleaves.append(leaf)
@@ -203,7 +202,7 @@ def count_leaves ( tree ):
 
 
 def count_descendant_leaves ( tree, node ):
-    t=Tree(tree)
+    t=ete3.Tree(tree)
     descendant_leaves = []
 
     for node in t.traverse ("preorder"):
@@ -214,7 +213,7 @@ def count_descendant_leaves ( tree, node ):
 
 
 def count_leaves_by_taxon ( tree, taxon_ID ):
-    t=Tree(tree)
+    t=ete3.Tree(tree)
     descendant_leaves = []
 
     for node in t.traverse ("preorder"):
@@ -235,6 +234,7 @@ def fasta_names ( fasta ):
     gene_names[id]=name
     return gene_names
 
+
 ## Generate newick format
 def get_newick(node):   
     if node.is_leaf():
@@ -252,27 +252,39 @@ def get_newick(node):
 
 
 ## Substitute taxon names in newick
-def sub_names_nwk( newick, file_with_names, pattern = False ):  
-    n=Tree(newick)
+def sub_names_nwk(tree, file_with_names, pattern=False):
+    n = ete3.Tree(tree)
     name = {}
 
-    if is_newick_format(file_with_names):
-        if not pattern == False:
-            t=Tree(file_with_names)
+    file_format = identify_format(file_with_names)
+
+    if file_format == 'newick':
+        if pattern == False:
+            t = ete3.Tree(file_with_names)
 
             for node in t.traverse():
                 if node.is_leaf():
-                    if re.search (pattern, node.name):
-                        name[node.name.split('_')[0]] = node.name
-    else:
-        print ( 'Provided file format is not newick.' )
+                    if re.search(pattern, node.name):
+                        name[node.name] = line.strip()[1:]
 
+    elif file_format == 'fasta' or file_format == 'list':
+        with open(file_with_names, "r") as file:
+            lines = file.readlines()
+
+        for line in lines:
+            if file_format == 'fasta' and line.startswith('>'):
+                name[re.sub("_UGT\w+$", "", line.strip()[1:])] = line.strip()[1:]
+                
+            elif file_format == 'list':
+                name[line.strip()[1:]] = line.strip()[1:]
+                
     for node in n.traverse():
         if node.is_leaf():
             if node.name in name.keys():
+                print ( name[node.name] )
                 node.name = str(name[node.name])
-            
-    return n.write(format=5)
+
+    return n.write(format = 2)
 
 ## Concatenate multiple gene trees together for ASTRAL input
 def prep_ASTRAL_input (tree):
@@ -283,7 +295,7 @@ def prep_ASTRAL_input (tree):
             tl = treefile.readlines()
 
             for tre in tl:        
-                t = Tree ( tre, quoted_node_names = True )
+                t = ete3.Tree ( tre, quoted_node_names = True )
 
                 for node in t.traverse():        
                     if node.is_leaf:
@@ -292,7 +304,7 @@ def prep_ASTRAL_input (tree):
                         elif re.search ( "." , node.name ):
                             node.name = re.sub("..*","",node.name)
 
-                out.write (t.write(format=5) + "\n")
+                out.write (t.write(format=2) + "\n")
 
 
 ## Multiple Sequence Alignment (MSA) manipulation
