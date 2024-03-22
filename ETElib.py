@@ -139,9 +139,8 @@ def visualize_tree(tree, layout = "c", show = True):
 
     species_colors = {}
 
-    for leaf in t.iter_leaves(): # Assign a unique color to each species #
-        leaf.name=re.sub ( "^g","Llongipalpis_g", leaf.name )
-
+    for leaf in t.iter_leaves(): # Assign a unique color to each species 
+        
         if re.search ( "_", leaf.name ): # If _ is present, get the prefix as species name
             species = re.sub("_.*","", leaf.name)
 
@@ -358,7 +357,7 @@ def sub_names_nwk(tree, file_with_names, pattern=False):
 
         for line in lines:
             if file_format == 'fasta' and line.startswith('>'):
-                name[re.sub("_UGT\w+$", "", line.strip()[1:])] = line.strip()[1:]
+                name[line.strip()[1:]] = line.strip()[1:]
                 
             elif file_format == 'list':
                 name[line.strip()[1:]] = line.strip()[1:]
